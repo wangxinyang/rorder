@@ -1,0 +1,166 @@
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+
+package rsvp;
+
+// reservation status
+enum ReservationStatus {
+    RESERVATION_STATUS_UNKNOWN = 0;
+    RESERVATION_STATUS_PENDING = 1;
+    RESERVATION_STATUS_CONFIRMED = 2;
+    RESERVATION_STATUS_CANCELLED = 3;
+}
+
+// when reservation is updated, record the update type
+enum ReservationUpdateType {
+    RESERVATION_UPDATE_TYPE_UNKNOWN = 0;
+    RESERVATION_UPDATE_TYPE_CREATE = 1;
+    RESERVATION_UPDATE_TYPE_UPDATE = 2;
+    RESERVATION_UPDATE_TYPE_DELETE = 3;
+}
+
+// reservation
+message Reservation {
+    int64 id = 1;
+    string user_id = 2;
+    string resource_id = 3;
+    google.protobuf.Timestamp start_time = 4;
+    google.protobuf.Timestamp end_time = 5;
+    ReservationStatus status = 6;
+    string note = 7;
+}
+
+// add reservation request
+message AddRequest {
+    Reservation reservation = 1;
+}
+
+// add reservation response
+message AddResponse {
+    Reservation reservation = 1;
+}
+
+// confirm reservation request
+message ConfirmRequest {
+    int64 id = 1;
+}
+
+// confirm reservation response
+message ConfirmResponse {
+    Reservation reservation = 1;
+}
+
+// update reservation request
+message UpdateRequest {
+    int64 id = 1;
+    string note = 2;
+}
+
+// update reservation response
+message UpdateResponse {
+    Reservation reservation = 1;
+}
+
+// cancel reservation request
+message CancelRequest {
+    int64 id = 1;
+}
+
+// cancel reservation response
+message CancelResponse {
+    Reservation reservation = 1;
+}
+
+// get reservation request
+message GetRequest {
+    int64 id = 1;
+}
+
+// get reservation response
+message GetResponse {
+    Reservation reservation = 1;
+}
+
+// query reservations with user id, resource id, start time, end time, and status
+message ReservationQuery {
+    // resource id for the reservation query. If empty, query all resources
+    string resource_id = 1;
+    // user id for the reservation query. If empty, query all users
+    string user_id = 2;
+    // use status to filter result. If UNKNOWN, return all reservations
+    ReservationStatus status = 3;
+    // start time for the reservation query, if 0, use Infinity for start time
+    google.protobuf.Timestamp start = 4;
+    // end time for the reservation query, if 0, use Infinity for end time
+    google.protobuf.Timestamp end = 5;
+    // sort direction
+    bool desc = 6;
+}
+
+message QueryRequest {
+    ReservationQuery query = 1;
+}
+
+message ListenRequest {}
+
+// Server will send ListenResponse to client in streaming response
+message ListenResponse {
+    // update type
+    ReservationUpdateType op = 1;
+    // id for updated reservation
+    Reservation reservation = 2;
+}
+
+
+// query reservations, order by reservation id
+message ReservationFilter {
+    // resource id for the reservation query. If empty, query all resources
+    string resource_id = 1;
+    // user id for the reservation query. If empty, query all users
+    string user_id = 2;
+    // use status to filter result. If UNKNOWN, return all reservations
+    ReservationStatus status = 3;
+    optional int64 cursor = 4;
+    // page size for the query
+    int64 page_size = 5;
+    // sort direction
+    bool desc = 6;
+}
+
+// To query reservations, send a QueryRequest
+message FilterRequest {
+    ReservationFilter filter = 1;
+}
+
+// filter pager info
+message FilterPager {
+    optional int64 prev = 1;
+    optional int64 next = 2;
+    optional int64 total = 3;
+}
+
+message FilterResponse {
+    repeated Reservation reservations = 1;
+    FilterPager pager = 2;
+}
+
+// Reservation service
+service ReservationService {
+    // make a reservation
+    rpc add (AddRequest) returns (AddResponse);
+    // confirm a valid perid resource, if reservation is not pending, do nothing
+    rpc confirm (ConfirmRequest) returns (ConfirmResponse);
+    // update a reservation
+    rpc update (UpdateRequest) returns (UpdateResponse);
+    // cancel a reservation
+    rpc cancel (CancelRequest) returns (CancelResponse);
+    // get reservation by reservation id
+    rpc get (GetRequest) returns (GetResponse);
+    // get reservations by resource id, user id, start time, end time, and status
+    rpc query (QueryRequest) returns (stream Reservation);
+    // filter reservations, order by reservation id
+    rpc filter(FilterRequest) returns (FilterResponse);
+    // another system could monitor newly added/confirmed/cancelled reservations
+    rpc listen (ListenRequest) returns (stream Reservation);
+}

@@ -1,4 +1,5 @@
 [workspace]
 members = [
+    # folder names
     "abi", "service", "order"
 ]
