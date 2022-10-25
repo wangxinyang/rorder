@@ -1,6 +1,7 @@
 use std::{fs, process::Command};
 
 fn main() {
+    std::env::set_var("PROTOC", protobuf_src::protoc());
     tonic_build::configure()
         .out_dir("src/pb")
         .compile(&["proto/rsvp.proto"], &["proto"])
