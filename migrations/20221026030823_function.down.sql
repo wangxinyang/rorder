@@ -1,0 +1,1 @@
+DROP FUNCTION rsvt.query;
