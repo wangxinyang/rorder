@@ -20,8 +20,8 @@ jobs:
         image: postgres:14.5
         env:
           POSTGRES_USER: tosei
-          POSTGRES_PASSWORD: tosei
-          POSTGRES_DB: reservations
+          POSTGRES_PASSWORD:
+          POSTGRES_DB: rorder
         ports:
           - 5432:5432
         # Set health checks to wait until postgres has started
