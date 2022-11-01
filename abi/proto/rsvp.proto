@@ -22,7 +22,7 @@ enum ReservationUpdateType {
 
 // reservation
 message Reservation {
-    int64 id = 1;
+    string id = 1;
     string user_id = 2;
     string resource_id = 3;
     google.protobuf.Timestamp start_time = 4;
