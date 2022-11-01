@@ -9,7 +9,7 @@ pub type ReservationId = String;
 #[async_trait]
 pub trait Order {
     /// create reservation
-    async fn create_order(&self, rsvp: abi::Reservation) -> Result<abi::Reservation, Error>;
+    async fn create_order(&self, rsvp: abi::Reservation) -> Result<abi::Reservation, sqlx::Error>;
 
     /// change the status of a reservation(if current status is pending, change it to confirmed)
     async fn change_status(

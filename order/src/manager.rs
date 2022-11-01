@@ -6,8 +6,11 @@ use sqlx::{postgres::types::PgRange, types::Uuid, Row};
 
 #[async_trait]
 impl Order for OrderManager {
-    async fn create_order(&self, mut rsvp: abi::Reservation) -> Result<abi::Reservation, Error> {
-        rsvp.validate()?;
+    async fn create_order(
+        &self,
+        mut rsvp: abi::Reservation,
+    ) -> Result<abi::Reservation, sqlx::Error> {
+        // rsvp.validate()?;
 
         let status = ReservationStatus::from_i32(rsvp.status).unwrap_or(ReservationStatus::Pending);
 
@@ -87,5 +90,31 @@ mod tests {
 
         let rsvp = order_manage.create_order(rsvp).await.unwrap();
         assert!(!rsvp.id.is_empty());
+    }
+
+    #[sqlx_database_tester::test(pool(variable = "migrated_pool", migrations = "../migrations"))]
+    async fn reservation_should_be_conflict() {
+        let order_manage = OrderManager::new(migrated_pool.clone());
+
+        let rsvp1 = Reservation::new_pending(
+            "tosei",
+            "ocean roon-745",
+            "2022-11-01T15:00:00+0800".parse().unwrap(),
+            "2022-11-07T12:00:00+0800".parse().unwrap(),
+            "please check the room for me",
+        );
+
+        let rsvp2 = Reservation::new_pending(
+            "wxy",
+            "ocean roon-745",
+            "2022-11-04T15:00:00+0800".parse().unwrap(),
+            "2022-11-08T12:00:00+0800".parse().unwrap(),
+            "love this room",
+        );
+
+        let _rsvp1 = order_manage.create_order(rsvp1).await.unwrap();
+        let error_rsvp2 = order_manage.create_order(rsvp2).await.unwrap_err();
+        // println!("----{:?}", error_rsvp2.to_string());
+        assert_eq!(error_rsvp2.to_string(), "error returned from database: conflicting key value violates exclusion constraint \"reservations_conflict\"");
     }
 }
