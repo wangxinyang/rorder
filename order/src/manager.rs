@@ -114,7 +114,7 @@ mod tests {
 
         let _rsvp1 = order_manage.create_order(rsvp1).await.unwrap();
         let error_rsvp2 = order_manage.create_order(rsvp2).await.unwrap_err();
-        // println!("----{:?}", error_rsvp2.to_string());
+        println!("----{:?}", error_rsvp2);
         assert_eq!(error_rsvp2.to_string(), "error returned from database: conflicting key value violates exclusion constraint \"reservations_conflict\"");
     }
 }
