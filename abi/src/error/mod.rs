@@ -42,3 +42,20 @@ impl From<sqlx::Error> for Error {
         }
     }
 }
+
+impl PartialEq for Error {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            // TODO: this is not a good way to compare DB errors, but we don't do that in the code
+            (Self::DbError(_), Self::DbError(_)) => true,
+            (Self::InvalidTime, Self::InvalidTime) => true,
+            (Self::ConfilictReservation(v1), Self::ConfilictReservation(v2)) => v1 == v2,
+            // (Self::NotFound, Self::NotFound) => true,
+            (Self::InvalidResourceId(v1), Self::InvalidResourceId(v2)) => v1 == v2,
+            (Self::InvalidUserId(v1), Self::InvalidUserId(v2)) => v1 == v2,
+            // (Self::InvalidResourceId(v1), Self::InvalidResourceId(v2)) => v1 == v2,
+            (Self::Unknown, Self::Unknown) => true,
+            _ => false,
+        }
+    }
+}

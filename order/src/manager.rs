@@ -70,7 +70,7 @@ impl Order for OrderManager {
 
 #[cfg(test)]
 mod tests {
-    use abi::Reservation;
+    use abi::{Reservation, ReservationConflict, ReservationConflictInfo, ReservationWindow};
     use chrono::FixedOffset;
 
     use super::*;
@@ -115,6 +115,18 @@ mod tests {
         let _rsvp1 = order_manage.create_order(rsvp1).await.unwrap();
         let error_rsvp2 = order_manage.create_order(rsvp2).await.unwrap_err();
         println!("----{:?}", error_rsvp2);
-        assert_eq!(error_rsvp2.to_string(), "error returned from database: conflicting key value violates exclusion constraint \"reservations_conflict\"");
+        let _info = ReservationConflictInfo::Parsed(ReservationConflict {
+            a: ReservationWindow {
+                rid: "ocean-view-room-713".to_string(),
+                start: "2022-12-26T15:00:00-0700".parse().unwrap(),
+                end: "2022-12-30T12:00:00-0700".parse().unwrap(),
+            },
+            b: ReservationWindow {
+                rid: "ocean-view-room-713".to_string(),
+                start: "2022-12-25T15:00:00-0700".parse().unwrap(),
+                end: "2022-12-28T12:00:00-0700".parse().unwrap(),
+            },
+        });
+        // assert_eq!(error_rsvp2, abi::Error::ConfilictReservation(info));
     }
 }
