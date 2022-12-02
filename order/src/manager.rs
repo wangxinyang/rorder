@@ -113,20 +113,19 @@ mod tests {
         );
 
         let _rsvp1 = order_manage.create_order(rsvp1).await.unwrap();
-        let error_rsvp2 = order_manage.create_order(rsvp2).await.unwrap_err();
-        println!("----{:?}", error_rsvp2);
-        let _info = ReservationConflictInfo::Parsed(ReservationConflict {
+        let error_rsvp2: abi::Error = order_manage.create_order(rsvp2).await.unwrap_err().into();
+        let info = ReservationConflictInfo::Parsed(ReservationConflict {
             a: ReservationWindow {
-                rid: "ocean-view-room-713".to_string(),
-                start: "2022-12-26T15:00:00-0700".parse().unwrap(),
-                end: "2022-12-30T12:00:00-0700".parse().unwrap(),
+                rid: "ocean roon-745".to_string(),
+                start: "2022-11-04T15:00:00+0800".parse().unwrap(),
+                end: "2022-11-08T12:00:00+0800".parse().unwrap(),
             },
             b: ReservationWindow {
-                rid: "ocean-view-room-713".to_string(),
-                start: "2022-12-25T15:00:00-0700".parse().unwrap(),
-                end: "2022-12-28T12:00:00-0700".parse().unwrap(),
+                rid: "ocean roon-745".to_string(),
+                start: "2022-11-01T15:00:00+0800".parse().unwrap(),
+                end: "2022-11-07T12:00:00+0800".parse().unwrap(),
             },
         });
-        // assert_eq!(error_rsvp2, abi::Error::ConfilictReservation(info));
+        assert_eq!(error_rsvp2, abi::Error::ConfilictReservation(info));
     }
 }
