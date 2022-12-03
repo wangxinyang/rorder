@@ -33,15 +33,14 @@ impl Order for OrderManager {
         Ok(rsvp)
     }
 
+    /// update the status of reservation resource by id
     async fn change_status(&self, id: ReservationId) -> Result<abi::Reservation, Error> {
         let id: Uuid = id
             .as_str()
             .try_into()
             .map_err(|_| abi::Error::InvalidReservationId(id.clone()))?;
         let reservation: Reservation = sqlx::query_as(
-            r#"
-            update rsvt.reservations set rstatus = 'confirmed' where id = $1 and rstatus = 'pending' RETURNING *
-        "#,
+            "update rsvt.reservations set rstatus = 'confirmed' where id = $1 and rstatus = 'pending' RETURNING *"
         )
         .bind(id)
         .fetch_one(&self.conn)
