@@ -10,8 +10,8 @@ pub enum ReservationConflictInfo {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ReservationConflict {
-    pub a: ReservationWindow,
-    pub b: ReservationWindow,
+    pub new: ReservationWindow,
+    pub old: ReservationWindow,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -47,8 +47,8 @@ impl FromStr for ReservationConflict {
 
 #[derive(Debug)]
 struct ParsedInfo {
-    a: HashMap<String, String>,
-    b: HashMap<String, String>,
+    new: HashMap<String, String>,
+    old: HashMap<String, String>,
 }
 
 impl TryFrom<ParsedInfo> for ReservationConflict {
@@ -56,8 +56,8 @@ impl TryFrom<ParsedInfo> for ReservationConflict {
 
     fn try_from(value: ParsedInfo) -> Result<Self, Self::Error> {
         Ok(Self {
-            a: value.a.try_into()?,
-            b: value.b.try_into()?,
+            new: value.new.try_into()?,
+            old: value.old.try_into()?,
         })
     }
 }
@@ -103,8 +103,8 @@ impl FromStr for ParsedInfo {
             return Err(());
         }
         Ok(ParsedInfo {
-            a: result[0].take().unwrap(),
-            b: result[1].take().unwrap(),
+            new: result[0].take().unwrap(),
+            old: result[1].take().unwrap(),
         })
     }
 }
@@ -127,7 +127,7 @@ mod tests {
     fn get_regex_content() {
         let result: ParsedInfo = ERR_MSG.parse().unwrap();
         assert_eq!(
-            result.a.get_key_value("resource_id").unwrap(),
+            result.new.get_key_value("resource_id").unwrap(),
             (&"resource_id".to_string(), &"ocean roon-745".to_string())
         );
     }
@@ -153,23 +153,23 @@ mod tests {
         let result: ParsedInfo = ERR_MSG.parse().unwrap();
         println!("result is : {:?}", result);
         let reservation_conflict: ReservationConflict = result.try_into().unwrap();
-        assert_eq!("ocean roon-745", reservation_conflict.a.rid);
+        assert_eq!("ocean roon-745", reservation_conflict.new.rid);
         assert_eq!(
             parse_datetime("2022-11-04 07:00:00+00").unwrap(),
-            reservation_conflict.a.start
+            reservation_conflict.new.start
         );
         assert_eq!(
             parse_datetime("2022-11-08 04:00:00+00").unwrap(),
-            reservation_conflict.a.end
+            reservation_conflict.new.end
         );
-        assert_eq!("ocean roon-745", reservation_conflict.b.rid);
+        assert_eq!("ocean roon-745", reservation_conflict.old.rid);
         assert_eq!(
             parse_datetime("2022-11-01 07:00:00+00").unwrap(),
-            reservation_conflict.b.start
+            reservation_conflict.old.start
         );
         assert_eq!(
             parse_datetime("2022-11-07 04:00:00+00").unwrap(),
-            reservation_conflict.b.end
+            reservation_conflict.old.end
         );
     }
 }
