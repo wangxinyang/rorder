@@ -15,7 +15,7 @@ BEGIN
         INSERT INTO rsvt.reservation_changes (reservation_id, op) VALUES (NEW.id, 'create');
     ELSIF TG_OP = 'UPDATE' THEN
         -- if status changed, update reservation_changes
-        IF OLD.status <> NEW.status THEN
+        IF OLD.rstatus <> NEW.rstatus THEN
             INSERT INTO rsvt.reservation_changes (reservation_id, op) VALUES (NEW.id, 'update');
         END IF;
     ELSIF TG_OP = 'DELETE' THEN

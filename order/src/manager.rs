@@ -1,15 +1,12 @@
 use crate::{Order, OrderManager, ReservationId};
-use abi::{convert_to_utc_time, Error, ReservationQuery, ReservationStatus};
+use abi::{convert_to_utc_time, Error, Reservation, ReservationQuery, ReservationStatus};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use sqlx::{postgres::types::PgRange, types::Uuid, Row};
 
 #[async_trait]
 impl Order for OrderManager {
-    async fn create_order(
-        &self,
-        mut rsvp: abi::Reservation,
-    ) -> Result<abi::Reservation, sqlx::Error> {
+    async fn create_order(&self, mut rsvp: abi::Reservation) -> Result<abi::Reservation, Error> {
         // rsvp.validate()?;
 
         let status = ReservationStatus::from_i32(rsvp.status).unwrap_or(ReservationStatus::Pending);
@@ -36,12 +33,20 @@ impl Order for OrderManager {
         Ok(rsvp)
     }
 
-    async fn change_status(
-        &self,
-        _id: ReservationId,
-        _status: ReservationStatus,
-    ) -> Result<abi::Reservation, Error> {
-        todo!()
+    async fn change_status(&self, id: ReservationId) -> Result<abi::Reservation, Error> {
+        let id: Uuid = id
+            .as_str()
+            .try_into()
+            .map_err(|_| abi::Error::InvalidReservationId(id.clone()))?;
+        let reservation: Reservation = sqlx::query_as(
+            r#"
+            update rsvt.reservations set rstatus = 'confirmed' where id = $1 and rstatus = 'pending' RETURNING *
+        "#,
+        )
+        .bind(id)
+        .fetch_one(&self.conn)
+        .await?;
+        Ok(reservation)
     }
 
     async fn update_note(
@@ -113,7 +118,7 @@ mod tests {
         );
 
         let _rsvp1 = order_manage.create_order(rsvp1).await.unwrap();
-        let error_rsvp2: abi::Error = order_manage.create_order(rsvp2).await.unwrap_err().into();
+        let error_rsvp2: abi::Error = order_manage.create_order(rsvp2).await.unwrap_err();
         let info = ReservationConflictInfo::Parsed(ReservationConflict {
             new: ReservationWindow {
                 rid: "ocean roon-745".to_string(),
@@ -127,5 +132,19 @@ mod tests {
             },
         });
         assert_eq!(error_rsvp2, abi::Error::ConfilictReservation(info));
+    }
+
+    #[sqlx_database_tester::test(pool(variable = "migrated_pool", migrations = "../migrations"))]
+    async fn update_reservation_status_should_be_work() {
+        let order_manage = OrderManager::new(migrated_pool.clone());
+        let start: DateTime<FixedOffset> = "2022-12-03T15:00:00+0800".parse().unwrap();
+        let end: DateTime<FixedOffset> = "2022-12-11T12:00:00+0800".parse().unwrap();
+        let rsvp = Reservation::new_pending("tosei", "room-test-1", start, end, "book room");
+        let rsvp = order_manage.create_order(rsvp).await.unwrap();
+        let rsvp = order_manage.change_status(rsvp.id).await.unwrap();
+        assert_eq!(
+            ReservationStatus::Confirmed,
+            ReservationStatus::from_i32(rsvp.status).unwrap()
+        );
     }
 }

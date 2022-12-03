@@ -1,4 +1,4 @@
-use chrono::{DateTime, FixedOffset, NaiveDateTime, Utc};
+use chrono::{DateTime, NaiveDateTime, Utc};
 use prost_types::Timestamp;
 
 /// convert timestamp to chrono datetime
@@ -9,7 +9,7 @@ pub fn convert_to_utc_time(time: &Timestamp) -> DateTime<Utc> {
     )
 }
 
-pub fn convert_to_timestamp(time: DateTime<FixedOffset>) -> Timestamp {
+pub fn convert_to_timestamp(time: DateTime<Utc>) -> Timestamp {
     Timestamp {
         seconds: time.timestamp(),
         nanos: time.timestamp_subsec_nanos() as _,
