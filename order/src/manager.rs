@@ -39,6 +39,13 @@ impl Order for OrderManager {
             .as_str()
             .try_into()
             .map_err(|_| abi::Error::InvalidReservationId(id.clone()))?;
+        // 不使用sqlx::query_as!的原因是struct的字段和数据库字段名字不匹配,无法解析出来
+        // let reservation  = sqlx::query_as!(Reservation,
+        //     "update rsvt.reservations set rstatus = 'confirmed' where id = $1 and rstatus = 'pending' RETURNING *",
+        //     id
+        // )
+        // .fetch_one(&self.conn)
+        // .await?;
         let reservation: Reservation = sqlx::query_as(
             "update rsvt.reservations set rstatus = 'confirmed' where id = $1 and rstatus = 'pending' RETURNING *"
         )
