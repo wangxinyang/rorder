@@ -1,5 +1,5 @@
 use crate::{Order, OrderManager, ReservationId};
-use abi::{convert_to_utc_time, Error, Reservation, ReservationQuery, ReservationStatus};
+use abi::{convert_to_utc_time, get_uuid_from_string, Error, ReservationQuery, ReservationStatus};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use sqlx::{postgres::types::PgRange, types::Uuid, Row};
@@ -35,10 +35,7 @@ impl Order for OrderManager {
 
     /// update the status of reservation resource by id
     async fn change_status(&self, id: ReservationId) -> Result<abi::Reservation, Error> {
-        let id: Uuid = id
-            .as_str()
-            .try_into()
-            .map_err(|_| abi::Error::InvalidReservationId(id.clone()))?;
+        let id: Uuid = get_uuid_from_string(id)?;
         // 不使用sqlx::query_as!的原因是struct的字段和数据库字段名字不匹配,无法解析出来
         // let reservation  = sqlx::query_as!(Reservation,
         //     "update rsvt.reservations set rstatus = 'confirmed' where id = $1 and rstatus = 'pending' RETURNING *",
@@ -46,7 +43,7 @@ impl Order for OrderManager {
         // )
         // .fetch_one(&self.conn)
         // .await?;
-        let reservation: Reservation = sqlx::query_as(
+        let reservation = sqlx::query_as(
             "update rsvt.reservations set rstatus = 'confirmed' where id = $1 and rstatus = 'pending' RETURNING *"
         )
         .bind(id)
@@ -55,27 +52,54 @@ impl Order for OrderManager {
         Ok(reservation)
     }
 
+    /// modify the reservation note info
     async fn update_note(
         &self,
-        _id: ReservationId,
-        _note: String,
+        id: ReservationId,
+        note: String,
     ) -> Result<abi::Reservation, Error> {
-        todo!()
+        let id = get_uuid_from_string(id)?;
+        let rsvp =
+            sqlx::query_as("update rsvt.reservations set note = $1 where id = $2 RETURNING *")
+                .bind(note)
+                .bind(id)
+                .fetch_one(&self.conn)
+                .await?;
+        Ok(rsvp)
     }
 
-    async fn cancel_reservation(&self, _id: ReservationId) -> Result<(), Error> {
-        todo!()
+    /// cancel the book reservation resource
+    async fn cancel_reservation(&self, id: ReservationId) -> Result<(), Error> {
+        let id = get_uuid_from_string(id)?;
+        sqlx::query("update rsvt.reservations set rstatus = 'pending' where id = $1 RETURNING *")
+            .bind(id)
+            .fetch_one(&self.conn)
+            .await?;
+        Ok(())
     }
 
-    async fn get_reservation(&self, _id: ReservationId) -> Result<abi::Reservation, Error> {
-        todo!()
+    /// get reservation resources by id
+    async fn get_reservation(&self, id: ReservationId) -> Result<abi::Reservation, Error> {
+        let id = get_uuid_from_string(id)?;
+        let rsvp = sqlx::query_as("select * from rsvt.reservations where id = $1")
+            .bind(id)
+            .fetch_one(&self.conn)
+            .await?;
+        Ok(rsvp)
     }
 
+    /// call postgreSql function get reservation resources
     async fn query_reservations(
         &self,
-        _query: ReservationQuery,
+        query: ReservationQuery,
     ) -> Result<Vec<abi::Reservation>, Error> {
-        todo!()
+        let _id = get_uuid_from_string(query.resource_id)?;
+
+        let rsvps = sqlx::query_as("select * from rsvt.reservations")
+            .fetch_all(&self.conn)
+            .await?;
+
+        Ok(rsvps)
     }
 }
 
@@ -152,5 +176,82 @@ mod tests {
             ReservationStatus::Confirmed,
             ReservationStatus::from_i32(rsvp.status).unwrap()
         );
+    }
+
+    #[sqlx_database_tester::test(pool(variable = "migrated_pool", migrations = "../migrations"))]
+    async fn update_reservation_status_twice_should_not_be_work() {
+        let order_manage = OrderManager::new(migrated_pool.clone());
+        let start: DateTime<FixedOffset> = "2022-12-03T15:00:00+0800".parse().unwrap();
+        let end: DateTime<FixedOffset> = "2022-12-11T12:00:00+0800".parse().unwrap();
+        let rsvp = Reservation::new_pending("tosei", "room-test-1", start, end, "book room");
+        let rsvp = order_manage.create_order(rsvp).await.unwrap();
+        let rsvp = order_manage.change_status(rsvp.id).await.unwrap();
+        // update the status twice occurs the RowNotFound error
+        let rsvp = order_manage.change_status(rsvp.id).await.unwrap_err();
+        assert_eq!(Error::NotFound, rsvp);
+    }
+
+    #[sqlx_database_tester::test(pool(variable = "migrated_pool", migrations = "../migrations"))]
+    async fn update_reservation_note_should_be_work() {
+        let order_manage = OrderManager::new(migrated_pool.clone());
+        let start: DateTime<FixedOffset> = "2022-12-03T15:00:00+0800".parse().unwrap();
+        let end: DateTime<FixedOffset> = "2022-12-11T12:00:00+0800".parse().unwrap();
+        let rsvp = Reservation::new_pending(
+            "tosei",
+            "room-test-1",
+            start,
+            end,
+            "i love this room very much, please book this room for me",
+        );
+        let rsvp = order_manage.create_order(rsvp).await.unwrap();
+        let rsvp = order_manage
+            .update_note(rsvp.id, "please cancel this room".into())
+            .await
+            .unwrap();
+        assert_eq!("please cancel this room".to_string(), rsvp.note);
+        assert_ne!(
+            "i love this room very much, please book this room for me".to_string(),
+            rsvp.note
+        )
+    }
+
+    #[sqlx_database_tester::test(pool(variable = "migrated_pool", migrations = "../migrations"))]
+    async fn cancel_reservation_should_be_work() {
+        let order_manage = OrderManager::new(migrated_pool.clone());
+        let start: DateTime<FixedOffset> = "2022-12-03T15:00:00+0800".parse().unwrap();
+        let end: DateTime<FixedOffset> = "2022-12-11T12:00:00+0800".parse().unwrap();
+        let rsvp = Reservation::new_pending(
+            "tosei",
+            "room-test-1",
+            start,
+            end,
+            "i love this room very much, please book this room for me",
+        );
+        // create the reservation
+        let rsvp = order_manage.create_order(rsvp).await.unwrap();
+        order_manage
+            .cancel_reservation(rsvp.id.clone())
+            .await
+            .unwrap();
+        let get_rsvp_info = order_manage.get_reservation(rsvp.id.clone()).await.unwrap();
+        assert_eq!(get_rsvp_info.status, rsvp.status);
+    }
+
+    #[sqlx_database_tester::test(pool(variable = "migrated_pool", migrations = "../migrations"))]
+    async fn get_reservation_should_be_work() {
+        let order_manage = OrderManager::new(migrated_pool.clone());
+        let start: DateTime<FixedOffset> = "2022-12-03T15:00:00+0800".parse().unwrap();
+        let end: DateTime<FixedOffset> = "2022-12-11T12:00:00+0800".parse().unwrap();
+        let rsvp = Reservation::new_pending(
+            "tosei",
+            "room-test-1",
+            start,
+            end,
+            "i love this room very much, please book this room for me",
+        );
+        // create the reservation
+        let rsvp = order_manage.create_order(rsvp).await.unwrap();
+        let get_rsvp_info = order_manage.get_reservation(rsvp.id.clone()).await.unwrap();
+        assert_eq!(get_rsvp_info, rsvp);
     }
 }

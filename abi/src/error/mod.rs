@@ -25,6 +25,9 @@ pub enum Error {
     #[error("Invalid reservation id: {0}")]
     InvalidReservationId(String),
 
+    #[error("No reservation found by the given condition")]
+    NotFound,
+
     #[error("unknown error")]
     Unknown,
 }
@@ -41,6 +44,7 @@ impl From<sqlx::Error> for Error {
                     _ => Error::DbError(sqlx::Error::Database(e)),
                 }
             }
+            sqlx::Error::RowNotFound => Error::NotFound,
             _ => Error::DbError(e),
         }
     }
@@ -53,7 +57,7 @@ impl PartialEq for Error {
             (Self::DbError(_), Self::DbError(_)) => true,
             (Self::InvalidTime, Self::InvalidTime) => true,
             (Self::ConfilictReservation(v1), Self::ConfilictReservation(v2)) => v1 == v2,
-            // (Self::NotFound, Self::NotFound) => true,
+            (Self::NotFound, Self::NotFound) => true,
             (Self::InvalidResourceId(v1), Self::InvalidResourceId(v2)) => v1 == v2,
             (Self::InvalidUserId(v1), Self::InvalidUserId(v2)) => v1 == v2,
             // (Self::InvalidResourceId(v1), Self::InvalidResourceId(v2)) => v1 == v2,
