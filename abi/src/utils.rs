@@ -7,7 +7,10 @@ use crate::Error;
 /// convert timestamp to chrono datetime
 pub fn convert_to_utc_time(time: &Timestamp) -> DateTime<Utc> {
     DateTime::<Utc>::from_utc(
-        NaiveDateTime::from_timestamp(time.seconds, time.nanos as _),
+        // Deprecated since 0.4.23
+        // use of deprecated associated function `chrono::NaiveDateTime::from_timestamp`
+        // : use `from_timestamp_opt()` instead
+        NaiveDateTime::from_timestamp_opt(time.seconds, time.nanos as _).unwrap(),
         Utc,
     )
 }
