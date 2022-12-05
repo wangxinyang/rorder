@@ -7,7 +7,8 @@ fn main() {
         .compile(&["proto/rsvp.proto"], &["proto"])
         .unwrap();
 
-    fs::remove_file("src/pb/google.protobuf.rs").unwrap();
+    fs::remove_file("src/pb/google.protobuf.rs")
+        .unwrap_or_else(|_| println!("the path is not existed"));
 
     Command::new("cargo").arg("fmt").output().unwrap();
 
