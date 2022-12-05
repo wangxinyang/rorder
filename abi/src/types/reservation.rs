@@ -1,15 +1,12 @@
-use std::ops::Bound;
-
 use chrono::{DateTime, FixedOffset, Utc};
 use sqlx::{
     postgres::{types::PgRange, PgRow},
     types::Uuid,
     FromRow, Row,
 };
+use std::ops::Bound;
 
-use crate::{
-    convert_to_timestamp, convert_to_utc_time, Error, Reservation, ReservationStatus, RsvpStatus,
-};
+use crate::{convert_to_timestamp, Error, Reservation, ReservationStatus, RsvpStatus, Validator};
 
 impl Reservation {
     pub fn new_pending(
@@ -29,8 +26,10 @@ impl Reservation {
             status: ReservationStatus::Pending as i32,
         }
     }
+}
 
-    pub fn validate(&self) -> Result<(), Error> {
+impl Validator for Reservation {
+    fn validate(&self) -> Result<(), Error> {
         if self.user_id.is_empty() {
             return Err(Error::InvalidUserId(self.user_id.clone()));
         }
@@ -43,9 +42,9 @@ impl Reservation {
             return Err(Error::InvalidTime);
         }
 
-        let start = convert_to_utc_time(self.start_time.as_ref().unwrap());
-        let end = convert_to_utc_time(self.end_time.as_ref().unwrap());
-        if start >= end {
+        let start = self.start_time.as_ref().unwrap();
+        let end = self.end_time.as_ref().unwrap();
+        if start.seconds >= end.seconds {
             return Err(Error::InvalidTime);
         }
 

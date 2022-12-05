@@ -1,18 +1,41 @@
 -- if both set, find all reservations within during for the resource and user
-CREATE OR REPLACE FUNCTION rsvt.query(uid text, rid text, during TSTZRANGE) RETURNS TABLE (LIKE rsvt.reservations) AS $$
+CREATE OR REPLACE FUNCTION rsvt.query(
+    uid text,
+    rid text,
+    during TSTZRANGE,
+    status rsvt.reservation_status,
+    page integer default 1,
+    is_desc bool default false,
+    page_size integer default 10
+) RETURNS TABLE (LIKE rsvt.reservations) AS $$ -- RETURNS TABLE (LIKE rsvt.reservations) 返回表
+DECLARE
+    _sql text;
     BEGIN
-        IF uid IS NULL AND rid IS NULL THEN
-        -- if both are null, find all reservations within during
-            RETURN QUERY SELECT * FROM rsvt.reservations WHERE during && rsvt.reservations.rperiod;
-        ELSIF uid IS NULL AND rid IS NOT NULL THEN
-        -- if user_id is null, find all reservations within during for the resource
-            RETURN QUERY SELECT * FROM rsvt.reservations WHERE resource_id = rid AND during @> rsvt.reservations.during;
-        ELSIF uid IS NOT NULL AND rid IS NULL THEN
-        -- if resource_id is null, find all reservations within during for the user
-            RETURN QUERY SELECT * FROM rsvt.reservations WHERE user_id = uid AND during @> rsvt.reservations.during;
-        ELSE
-        -- if both set, find all reservations within during for the resource and user
-            RETURN QUERY SELECT * FROM rsvt.reservations WHERE user_id = uid AND resource_id = rid AND during @> rsvt.reservations.during;
-        END IF;
+        -- format the qurey based on parameters
+        _sql := format(
+            'select * from rsvt.reservations where %L @> rperiod and rstatus = %L and %s order by lower(rperiod) %s
+            limit %s offset %s',
+            during,
+            status,
+            CASE
+                WHEN uid IS NULL AND rid IS NULL THEN 'TRUE'
+                WHEN uid IS NULL THEN 'resource_id = ' || quote_literal(rid)
+                WHEN rid IS NULL THEN 'user_id = ' || quote_literal(uid)
+                ELSE 'resource_id =' || quote_literal(rid) || ' AND user_id = ' || quote_literal(uid)
+            END,
+            CASE
+                WHEN is_desc THEN 'DESC'
+                ELSE 'ASC'
+            END,
+            page_size,
+            (page - 1) * page_size
+        );
+
+        -- log the sql
+        RAISE NOTICE '%', _sql;
+
+        -- execute the query
+        RETURN QUERY EXECUTE _sql;
+
     END;
 $$ LANGUAGE plpgsql;

@@ -96,6 +96,10 @@ message ReservationQuery {
     google.protobuf.Timestamp end = 5;
     // sort direction
     bool desc = 6;
+    // current page for the query
+    int32 page = 7;
+    // page size for the query
+    int32 page_size = 8;
 }
 
 message QueryRequest {

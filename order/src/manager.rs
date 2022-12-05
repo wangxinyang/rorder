@@ -1,5 +1,8 @@
 use crate::{Order, OrderManager, ReservationId};
-use abi::{convert_to_utc_time, get_uuid_from_string, Error, ReservationQuery, ReservationStatus};
+use abi::{
+    convert_to_utc_time, get_uuid_from_string, Error, ReservationQuery, ReservationStatus,
+    Validator,
+};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use sqlx::{postgres::types::PgRange, types::Uuid, Row};
@@ -7,7 +10,7 @@ use sqlx::{postgres::types::PgRange, types::Uuid, Row};
 #[async_trait]
 impl Order for OrderManager {
     async fn create_order(&self, mut rsvp: abi::Reservation) -> Result<abi::Reservation, Error> {
-        // rsvp.validate()?;
+        rsvp.validate()?;
 
         let status = ReservationStatus::from_i32(rsvp.status).unwrap_or(ReservationStatus::Pending);
 
@@ -93,13 +96,33 @@ impl Order for OrderManager {
         &self,
         query: ReservationQuery,
     ) -> Result<Vec<abi::Reservation>, Error> {
-        let _id = get_uuid_from_string(query.resource_id)?;
-
-        let rsvps = sqlx::query_as("select * from rsvt.reservations")
-            .fetch_all(&self.conn)
-            .await?;
+        let user_id = str_to_option(&query.user_id);
+        let resource_id = str_to_option(&query.resource_id);
+        let range = query.timespan();
+        let status =
+            ReservationStatus::from_i32(query.status).unwrap_or(ReservationStatus::Pending);
+        let rsvps = sqlx::query_as(
+            "select * from rsvt.query($1, $2, $3, $4::rsvt.reservation_status, $5, $6, $7)",
+        )
+        .bind(user_id)
+        .bind(resource_id)
+        .bind(range)
+        .bind(status.to_string())
+        .bind(query.page)
+        .bind(query.desc)
+        .bind(query.page_size)
+        .fetch_all(&self.conn)
+        .await?;
 
         Ok(rsvps)
+    }
+}
+
+fn str_to_option(s: &str) -> Option<&str> {
+    if s.is_empty() {
+        None
+    } else {
+        Some(s)
     }
 }
 
@@ -107,6 +130,7 @@ impl Order for OrderManager {
 mod tests {
     use abi::{Reservation, ReservationConflict, ReservationConflictInfo, ReservationWindow};
     use chrono::FixedOffset;
+    use sqlx::PgPool;
 
     use super::*;
 
@@ -253,5 +277,60 @@ mod tests {
         let rsvp = order_manage.create_order(rsvp).await.unwrap();
         let get_rsvp_info = order_manage.get_reservation(rsvp.id.clone()).await.unwrap();
         assert_eq!(get_rsvp_info, rsvp);
+    }
+
+    #[sqlx_database_tester::test(pool(variable = "migrated_pool", migrations = "../migrations"))]
+    async fn query_reservations_should_be_work() {
+        // let order_manage = OrderManager::new(migrated_pool.clone());
+        let (rsvp, manager) = make_alice_reservation(migrated_pool.clone()).await;
+        // this is not database data, created by make_alice_reservation method
+        let query = ReservationQuery::new(
+            "".to_string(),
+            "".to_string(),
+            "2021-10-01T15:00:00-0700".parse().unwrap(),
+            "2023-12-30T15:00:00-0700".parse().unwrap(),
+            1,
+            false,
+            2,
+            ReservationStatus::Pending,
+        );
+        println!("query is : {:?}", query);
+        // query the reservation
+        let rsvps = manager.query_reservations(query).await.unwrap();
+        println!("rsvps is : {:?}", rsvps);
+        assert_eq!(1, rsvps.len());
+        assert_eq!(rsvp, rsvps[0]);
+    }
+
+    async fn make_alice_reservation(pool: PgPool) -> (Reservation, OrderManager) {
+        make_reservation(
+            pool,
+            "aliceid",
+            "ixia-test-1",
+            "2023-01-25T15:00:00-0700",
+            "2023-02-25T12:00:00-0700",
+            "I need to book this for xyz project for a month.",
+        )
+        .await
+    }
+
+    async fn make_reservation(
+        pool: PgPool,
+        uid: &str,
+        rid: &str,
+        start: &str,
+        end: &str,
+        note: &str,
+    ) -> (Reservation, OrderManager) {
+        let manager = OrderManager::new(pool.clone());
+        let rsvp = abi::Reservation::new_pending(
+            uid,
+            rid,
+            start.parse().unwrap(),
+            end.parse().unwrap(),
+            note,
+        );
+
+        (manager.create_order(rsvp).await.unwrap(), manager)
     }
 }

@@ -4,3 +4,9 @@
 mod rsvp;
 
 pub use rsvp::*;
+
+use crate::Error;
+
+pub trait Validator {
+    fn validate(&self) -> Result<(), Error>;
+}

@@ -99,6 +99,12 @@ pub struct ReservationQuery {
     /// sort direction
     #[prost(bool, tag = "6")]
     pub desc: bool,
+    /// current page for the query
+    #[prost(int32, tag = "7")]
+    pub page: i32,
+    /// page size for the query
+    #[prost(int32, tag = "8")]
+    pub page_size: i32,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct QueryRequest {
