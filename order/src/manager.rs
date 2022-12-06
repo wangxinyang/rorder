@@ -128,8 +128,12 @@ fn str_to_option(s: &str) -> Option<&str> {
 
 #[cfg(test)]
 mod tests {
-    use abi::{Reservation, ReservationConflict, ReservationConflictInfo, ReservationWindow};
+    use abi::{
+        Reservation, ReservationConflict, ReservationConflictInfo, ReservationQueryBuilder,
+        ReservationWindow,
+    };
     use chrono::FixedOffset;
+    use prost_types::Timestamp;
     use sqlx::PgPool;
 
     use super::*;
@@ -284,20 +288,46 @@ mod tests {
         // let order_manage = OrderManager::new(migrated_pool.clone());
         let (rsvp, manager) = make_alice_reservation(migrated_pool.clone()).await;
         // this is not database data, created by make_alice_reservation method
-        let query = ReservationQuery::new(
-            "".to_string(),
-            "".to_string(),
-            "2021-10-01T15:00:00-0700".parse().unwrap(),
-            "2023-12-30T15:00:00-0700".parse().unwrap(),
-            1,
-            false,
-            2,
-            ReservationStatus::Pending,
-        );
-        println!("query is : {:?}", query);
+        // use the builder pattern for warp the ReservationQuery struct
+        let query = ReservationQueryBuilder::default()
+            .user_id("aliceid")
+            .status(ReservationStatus::Pending)
+            .start("2021-10-01T15:00:00-0700".parse::<Timestamp>().unwrap())
+            .end("2023-12-30T15:00:00-0700".parse::<Timestamp>().unwrap())
+            .build()
+            .unwrap();
         // query the reservation
         let rsvps = manager.query_reservations(query).await.unwrap();
-        println!("rsvps is : {:?}", rsvps);
+        assert_eq!(1, rsvps.len());
+        assert_eq!(rsvp, rsvps[0]);
+
+        // if window is not blank
+        let query = ReservationQueryBuilder::default()
+            .user_id("aliceid")
+            .status(ReservationStatus::Confirmed)
+            .start("2023-01-01T15:00:00-0700".parse::<Timestamp>().unwrap())
+            .end("2023-02-01T15:00:00-0700".parse::<Timestamp>().unwrap())
+            .build()
+            .unwrap();
+        // query the reservation
+        let rsvps = manager.query_reservations(query).await.unwrap();
+        assert_eq!(0, rsvps.len());
+
+        // if status is not in correct
+        let query = ReservationQueryBuilder::default()
+            .user_id("aliceid")
+            .status(ReservationStatus::Confirmed)
+            .start("2021-10-01T15:00:00-0700".parse::<Timestamp>().unwrap())
+            .end("2023-12-30T15:00:00-0700".parse::<Timestamp>().unwrap())
+            .build()
+            .unwrap();
+        // query the reservation
+        let rsvps = manager.query_reservations(query.clone()).await.unwrap();
+        assert_eq!(0, rsvps.len());
+
+        // if change the status to confirmed, query should get result
+        let rsvp = manager.change_status(rsvp.id).await.unwrap();
+        let rsvps = manager.query_reservations(query.clone()).await.unwrap();
         assert_eq!(1, rsvps.len());
         assert_eq!(rsvp, rsvps[0]);
     }

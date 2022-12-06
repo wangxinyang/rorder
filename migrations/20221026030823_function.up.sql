@@ -11,6 +11,13 @@ CREATE OR REPLACE FUNCTION rsvt.query(
 DECLARE
     _sql text;
     BEGIN
+        -- if page_size is not between 10 and 100, set it to 10
+        IF page_size < 10 OR page_size > 100 THEN
+            page_size := 10;
+        END IF;
+        IF page < 1 THEN
+            page := 1;
+        END IF;
         -- format the qurey based on parameters
         _sql := format(
             'select * from rsvt.reservations where %L @> rperiod and rstatus = %L and %s order by lower(rperiod) %s

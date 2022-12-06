@@ -12,5 +12,6 @@ chrono = "0.4.22"
 sqlx = { version = "0.6.2", features = ["chrono", "uuid", "postgres", "runtime-tokio-rustls"] }
 
 [dev-dependencies]
+prost-types = "0.11.2"
 sqlx-database-tester = { version = "0.4.2", features = ["runtime-tokio"] }
 tokio = { version = "1.21.2", features = ["full"] }

@@ -2,35 +2,10 @@ use chrono::{DateTime, Utc};
 use sqlx::postgres::types::PgRange;
 use std::ops::Bound;
 
-use crate::{
-    convert_to_timestamp, convert_to_utc_time, Error, ReservationQuery, ReservationStatus,
-    Validator,
-};
+use crate::{convert_to_utc_time, Error, ReservationQuery, Validator};
 
-#[allow(clippy::too_many_arguments)]
+// #[allow(clippy::too_many_arguments)] use the derive_builder solve this clippy problem
 impl ReservationQuery {
-    pub fn new(
-        user_id: String,
-        resource_id: String,
-        start: DateTime<Utc>,
-        end: DateTime<Utc>,
-        page: i32,
-        desc: bool,
-        page_size: i32,
-        status: ReservationStatus,
-    ) -> Self {
-        Self {
-            resource_id,
-            user_id,
-            status: status as i32,
-            start: Some(convert_to_timestamp(start)),
-            end: Some(convert_to_timestamp(end)),
-            desc,
-            page,
-            page_size,
-        }
-    }
-
     pub fn timespan(&self) -> PgRange<DateTime<Utc>> {
         PgRange {
             start: Bound::Included(convert_to_utc_time(self.start.as_ref().unwrap())),
