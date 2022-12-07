@@ -1,10 +1,29 @@
 use crate::{Order, OrderManager, ReservationId};
 use abi::{
-    convert_to_utc_time, Error, FilterPager, ReservationQuery, ReservationStatus, Validator,
+    convert_to_utc_time, DbConfig, Error, FilterPager, ReservationQuery, ReservationStatus,
+    Validator,
 };
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use sqlx::{postgres::types::PgRange, Row};
+use sqlx::{
+    postgres::{types::PgRange, PgPoolOptions},
+    PgPool, Row,
+};
+
+impl OrderManager {
+    pub fn new(conn: PgPool) -> Self {
+        Self { conn }
+    }
+
+    pub async fn from_config(config: &DbConfig) -> Result<Self, Error> {
+        let url = config.url();
+        let conn = PgPoolOptions::new()
+            .max_connections(config.max_connections)
+            .connect(&url)
+            .await?;
+        Ok(Self::new(conn))
+    }
+}
 
 #[async_trait]
 impl Order for OrderManager {

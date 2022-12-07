@@ -41,9 +41,3 @@ pub trait Order {
 pub struct OrderManager {
     conn: PgPool,
 }
-
-impl OrderManager {
-    pub fn new(conn: PgPool) -> Self {
-        Self { conn }
-    }
-}

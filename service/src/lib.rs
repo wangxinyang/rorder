@@ -1,4 +1,5 @@
 use futures::Stream;
+use order::OrderManager;
 use std::pin::Pin;
 use tonic::{Request, Response, Status};
 
@@ -9,7 +10,7 @@ use abi::{
 };
 
 type ReservationResponseStream = Pin<Box<dyn Stream<Item = Result<Reservation, Status>> + Send>>;
-pub struct RsvpService;
+pub struct RsvpService(OrderManager);
 
 #[tonic::async_trait]
 impl ReservationService for RsvpService {
