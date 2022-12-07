@@ -59,7 +59,7 @@ DECLARE
     _sql text;
     BEGIN
         -- if cursor is null, set it to 0 if is_desc is false, or to max int if is_desc is true
-        IF cursor IS NULL THEN
+        IF cursor IS NULL or cursor < 0 THEN
             IF is_desc THEN
                 cursor := 2147483647;
             ELSE

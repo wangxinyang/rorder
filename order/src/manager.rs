@@ -1,5 +1,7 @@
 use crate::{Order, OrderManager, ReservationId};
-use abi::{convert_to_utc_time, Error, ReservationQuery, ReservationStatus, Validator};
+use abi::{
+    convert_to_utc_time, Error, FilterPager, ReservationQuery, ReservationStatus, Validator,
+};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use sqlx::{postgres::types::PgRange, Row};
@@ -113,12 +115,12 @@ impl Order for OrderManager {
     async fn filter_reservations(
         &self,
         filter: abi::ReservationFilter,
-    ) -> Result<Vec<abi::Reservation>, Error> {
+    ) -> Result<(FilterPager, Vec<abi::Reservation>), Error> {
         let user_id = str_to_option(&filter.user_id);
         let resource_id = str_to_option(&filter.resource_id);
         let status =
             ReservationStatus::from_i32(filter.status).unwrap_or(ReservationStatus::Pending);
-        let rsvps = sqlx::query_as(
+        let rsvps: Vec<abi::Reservation> = sqlx::query_as(
             "select * from rsvt.filter($1, $2, $3::rsvt.reservation_status, $4, $5, $6)",
         )
         .bind(user_id)
@@ -130,7 +132,14 @@ impl Order for OrderManager {
         .fetch_all(&self.conn)
         .await?;
 
-        Ok(rsvps)
+        let pager = FilterPager {
+            prev: Some(rsvps[0].id),
+            next: Some(rsvps[rsvps.len() - 1].id),
+            // TODO: how to get total count?
+            total: Some(0),
+        };
+
+        Ok((pager, rsvps))
     }
 }
 
@@ -356,9 +365,11 @@ mod tests {
             .build()
             .unwrap();
         // query the reservation
-        let rsvps = manager.filter_reservations(filter).await.unwrap();
+        let (filter_page, rsvps) = manager.filter_reservations(filter).await.unwrap();
         assert_eq!(1, rsvps.len());
         assert_eq!(rsvp, rsvps[0]);
+        assert_eq!(1, filter_page.prev.unwrap());
+        assert_eq!(1, filter_page.next.unwrap());
     }
 
     async fn make_alice_reservation(pool: PgPool) -> (Reservation, OrderManager) {

@@ -1,6 +1,6 @@
 mod manager;
 
-use abi::Error;
+use abi::{Error, FilterPager};
 use async_trait::async_trait;
 use sqlx::PgPool;
 
@@ -34,7 +34,7 @@ pub trait Order {
     async fn filter_reservations(
         &self,
         filter: abi::ReservationFilter,
-    ) -> Result<Vec<abi::Reservation>, Error>;
+    ) -> Result<(FilterPager, Vec<abi::Reservation>), Error>;
 }
 
 #[derive(Debug)]
