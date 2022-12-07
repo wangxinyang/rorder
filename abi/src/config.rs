@@ -42,8 +42,8 @@ impl Config {
 impl DbConfig {
     pub fn server_url(&self) -> String {
         format!(
-            "postgres://{}:{}@{}:{}/{}",
-            self.user, self.password, self.host, self.port, self.dbname
+            "postgres://{}:{}@{}:{}",
+            self.user, self.password, self.host, self.port
         )
     }
 

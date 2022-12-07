@@ -1,22 +1,43 @@
 use futures::Stream;
-use order::OrderManager;
+use order::{Order, OrderManager};
 use std::pin::Pin;
-use tonic::{Request, Response, Status};
+use tonic::{async_trait, Request, Response, Status};
 
 use abi::{
     reservation_service_server::ReservationService, AddRequest, AddResponse, CancelRequest,
-    CancelResponse, ConfirmRequest, ConfirmResponse, FilterRequest, FilterResponse, GetRequest,
-    GetResponse, ListenRequest, QueryRequest, Reservation, UpdateRequest, UpdateResponse,
+    CancelResponse, Config, ConfirmRequest, ConfirmResponse, FilterRequest, FilterResponse,
+    GetRequest, GetResponse, ListenRequest, QueryRequest, Reservation, UpdateRequest,
+    UpdateResponse,
 };
 
 type ReservationResponseStream = Pin<Box<dyn Stream<Item = Result<Reservation, Status>> + Send>>;
-pub struct RsvpService(OrderManager);
+pub struct RsvpService {
+    manager: OrderManager,
+}
 
-#[tonic::async_trait]
+impl RsvpService {
+    pub async fn from_config(config: Config) -> Result<Self, anyhow::Error> {
+        Ok(Self {
+            manager: OrderManager::from_config(&config.db).await?,
+        })
+    }
+}
+
+#[async_trait]
 impl ReservationService for RsvpService {
     /// make a reservation
-    async fn add(&self, _request: Request<AddRequest>) -> Result<Response<AddResponse>, Status> {
-        todo!()
+    async fn add(&self, request: Request<AddRequest>) -> Result<Response<AddResponse>, Status> {
+        let request = request.into_inner();
+        if request.reservation.is_none() {
+            return Err(Status::invalid_argument("reservation is required"));
+        }
+        let rsvp = self
+            .manager
+            .create_order(request.reservation.unwrap())
+            .await?;
+        Ok(Response::new(AddResponse {
+            reservation: Some(rsvp),
+        }))
     }
 
     /// confirm a valid perid resource, if reservation is not pending, do nothing
