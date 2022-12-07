@@ -93,3 +93,37 @@ impl ReservationService for RsvpService {
         todo!()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use abi::Reservation;
+
+    use super::*;
+
+    #[tokio::test]
+    #[ignore]
+    async fn rpc_create_reservation_should_be_work() {
+        let config = Config::from_file("../service/fixtures/config.yml").unwrap();
+        let service = RsvpService::from_config(config).await.unwrap();
+        let reservation = Reservation::new_pending(
+            "tosei",
+            "zoom1",
+            "2023-01-25T15:00:00-0700".parse().unwrap(),
+            "2023-02-25T12:00:00-0700".parse().unwrap(),
+            "test rpc create reservation",
+        );
+        let request = Request::new(AddRequest {
+            reservation: Some(reservation.clone()),
+        });
+        let response = service.add(request).await.unwrap();
+        let reservation1 = response.into_inner().reservation;
+        assert!(reservation1.is_some());
+        let reservation1 = reservation1.unwrap();
+        assert_eq!(reservation1.user_id, reservation.user_id);
+        assert_eq!(reservation1.resource_id, reservation.resource_id);
+        assert_eq!(reservation1.start_time, reservation.start_time);
+        assert_eq!(reservation1.end_time, reservation.end_time);
+        assert_eq!(reservation1.note, reservation.note);
+        assert_eq!(reservation1.status, reservation.status);
+    }
+}
