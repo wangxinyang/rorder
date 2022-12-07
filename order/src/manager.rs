@@ -109,6 +109,29 @@ impl Order for OrderManager {
 
         Ok(rsvps)
     }
+
+    async fn filter_reservations(
+        &self,
+        filter: abi::ReservationFilter,
+    ) -> Result<Vec<abi::Reservation>, Error> {
+        let user_id = str_to_option(&filter.user_id);
+        let resource_id = str_to_option(&filter.resource_id);
+        let status =
+            ReservationStatus::from_i32(filter.status).unwrap_or(ReservationStatus::Pending);
+        let rsvps = sqlx::query_as(
+            "select * from rsvt.filter($1, $2, $3::rsvt.reservation_status, $4, $5, $6)",
+        )
+        .bind(user_id)
+        .bind(resource_id)
+        .bind(status.to_string())
+        .bind(filter.cursor)
+        .bind(filter.desc)
+        .bind(filter.page_size)
+        .fetch_all(&self.conn)
+        .await?;
+
+        Ok(rsvps)
+    }
 }
 
 fn str_to_option(s: &str) -> Option<&str> {
@@ -122,8 +145,8 @@ fn str_to_option(s: &str) -> Option<&str> {
 #[cfg(test)]
 mod tests {
     use abi::{
-        Reservation, ReservationConflict, ReservationConflictInfo, ReservationQueryBuilder,
-        ReservationWindow,
+        Reservation, ReservationConflict, ReservationConflictInfo, ReservationFilterBuilder,
+        ReservationQueryBuilder, ReservationWindow,
     };
     use chrono::FixedOffset;
     use prost_types::Timestamp;
@@ -318,6 +341,22 @@ mod tests {
         // if change the status to confirmed, query should get result
         let rsvp = manager.change_status(rsvp.id).await.unwrap();
         let rsvps = manager.query_reservations(query.clone()).await.unwrap();
+        assert_eq!(1, rsvps.len());
+        assert_eq!(rsvp, rsvps[0]);
+    }
+
+    #[sqlx_database_tester::test(pool(variable = "migrated_pool", migrations = "../migrations"))]
+    async fn filter_reservations_should_be_work() {
+        let (rsvp, manager) = make_alice_reservation(migrated_pool.clone()).await;
+        // this is not database data, created by make_alice_reservation method
+        // use the builder pattern for warp the ReservationQuery struct
+        let filter = ReservationFilterBuilder::default()
+            .status(ReservationStatus::Pending)
+            .desc(true)
+            .build()
+            .unwrap();
+        // query the reservation
+        let rsvps = manager.filter_reservations(filter).await.unwrap();
         assert_eq!(1, rsvps.len());
         assert_eq!(rsvp, rsvps[0]);
     }

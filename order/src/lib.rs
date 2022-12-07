@@ -29,6 +29,12 @@ pub trait Order {
         &self,
         query: abi::ReservationQuery,
     ) -> Result<Vec<abi::Reservation>, Error>;
+
+    /// query reservations by order by id
+    async fn filter_reservations(
+        &self,
+        filter: abi::ReservationFilter,
+    ) -> Result<Vec<abi::Reservation>, Error>;
 }
 
 #[derive(Debug)]

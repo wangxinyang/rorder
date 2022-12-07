@@ -7,7 +7,7 @@ fn main() {
         // enhance the prost_build with trait BuilderExt
         .with_sql_type(&["rsvp.ReservationStatus"])
         // import the derive_builder crate for builder mode
-        .with_derive_build(&["rsvp.ReservationQuery"])
+        .with_derive_build(&["rsvp.ReservationQuery", "rsvp.ReservationFilter"])
         // avoid to warp the Option type for start parameter
         .with_builder_option("rsvp.ReservationQuery", &["start", "end"])
         .with_builder_into(
@@ -17,6 +17,17 @@ fn main() {
                 "user_id",
                 "status",
                 "page",
+                "page_size",
+                "desc",
+            ],
+        )
+        .with_builder_into(
+            "rsvp.ReservationFilter",
+            &[
+                "resource_id",
+                "user_id",
+                "status",
+                "cursor",
                 "page_size",
                 "desc",
             ],
