@@ -2,7 +2,7 @@ CREATE TYPE rsvt.reservation_status AS ENUM ('unknown', 'pending', 'confirmed', 
 CREATE TYPE rsvt.reservation_update_type AS ENUM ('unknown', 'create', 'update', 'delete');
 
 CREATE TABLE rsvt.reservations (
-    id UUID NOT NULL DEFAULT gen_random_uuid(),
+    id bigserial NOT NULL,
     user_id VARCHAR(64) NOT NULL,
     rstatus rsvt.reservation_status NOT NULL DEFAULT 'pending',
     resource_id VARCHAR(64) NOT NULL,

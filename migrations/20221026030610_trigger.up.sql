@@ -1,7 +1,7 @@
 -- resevation change queue
 CREATE TABLE rsvt.reservation_changes (
     id SERIAL NOT NULL,
-    reservation_id uuid NOT NULL,
+    reservation_id bigserial NOT NULL,
     op rsvt.reservation_update_type NOT NULL,
     CONSTRAINT reservation_changes_pkey PRIMARY KEY (id)
 );

@@ -4,7 +4,7 @@ use abi::Error;
 use async_trait::async_trait;
 use sqlx::PgPool;
 
-pub type ReservationId = String;
+pub type ReservationId = i64;
 
 #[async_trait]
 pub trait Order {

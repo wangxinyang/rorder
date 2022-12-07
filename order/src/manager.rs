@@ -1,11 +1,8 @@
 use crate::{Order, OrderManager, ReservationId};
-use abi::{
-    convert_to_utc_time, get_uuid_from_string, Error, ReservationQuery, ReservationStatus,
-    Validator,
-};
+use abi::{convert_to_utc_time, Error, ReservationQuery, ReservationStatus, Validator};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use sqlx::{postgres::types::PgRange, types::Uuid, Row};
+use sqlx::{postgres::types::PgRange, Row};
 
 #[async_trait]
 impl Order for OrderManager {
@@ -19,7 +16,7 @@ impl Order for OrderManager {
         let end = convert_to_utc_time(rsvp.end_time.as_ref().unwrap());
         let timespan: PgRange<DateTime<Utc>> = (start..end).into();
 
-        let id: Uuid = sqlx::query(
+        let id: i64 = sqlx::query(
             "INSERT INTO rsvt.reservations (user_id, resource_id, rperiod, rstatus, note)
             VALUES ($1, $2, $3, $4::rsvt.reservation_status, $5) RETURNING id",
         )
@@ -32,13 +29,12 @@ impl Order for OrderManager {
         .await?
         .get(0);
 
-        rsvp.id = id.to_string();
+        rsvp.id = id;
         Ok(rsvp)
     }
 
     /// update the status of reservation resource by id
     async fn change_status(&self, id: ReservationId) -> Result<abi::Reservation, Error> {
-        let id: Uuid = get_uuid_from_string(id)?;
         // 不使用sqlx::query_as!的原因是struct的字段和数据库字段名字不匹配,无法解析出来
         // let reservation  = sqlx::query_as!(Reservation,
         //     "update rsvt.reservations set rstatus = 'confirmed' where id = $1 and rstatus = 'pending' RETURNING *",
@@ -61,7 +57,6 @@ impl Order for OrderManager {
         id: ReservationId,
         note: String,
     ) -> Result<abi::Reservation, Error> {
-        let id = get_uuid_from_string(id)?;
         let rsvp =
             sqlx::query_as("update rsvt.reservations set note = $1 where id = $2 RETURNING *")
                 .bind(note)
@@ -73,7 +68,6 @@ impl Order for OrderManager {
 
     /// cancel the book reservation resource
     async fn cancel_reservation(&self, id: ReservationId) -> Result<(), Error> {
-        let id = get_uuid_from_string(id)?;
         sqlx::query("update rsvt.reservations set rstatus = 'pending' where id = $1 RETURNING *")
             .bind(id)
             .fetch_one(&self.conn)
@@ -83,7 +77,6 @@ impl Order for OrderManager {
 
     /// get reservation resources by id
     async fn get_reservation(&self, id: ReservationId) -> Result<abi::Reservation, Error> {
-        let id = get_uuid_from_string(id)?;
         let rsvp = sqlx::query_as("select * from rsvt.reservations where id = $1")
             .bind(id)
             .fetch_one(&self.conn)
@@ -152,7 +145,7 @@ mod tests {
         );
 
         let rsvp = order_manage.create_order(rsvp).await.unwrap();
-        assert!(!rsvp.id.is_empty());
+        assert!(rsvp.id != 0);
     }
 
     #[sqlx_database_tester::test(pool(variable = "migrated_pool", migrations = "../migrations"))]
@@ -257,11 +250,8 @@ mod tests {
         );
         // create the reservation
         let rsvp = order_manage.create_order(rsvp).await.unwrap();
-        order_manage
-            .cancel_reservation(rsvp.id.clone())
-            .await
-            .unwrap();
-        let get_rsvp_info = order_manage.get_reservation(rsvp.id.clone()).await.unwrap();
+        order_manage.cancel_reservation(rsvp.id).await.unwrap();
+        let get_rsvp_info = order_manage.get_reservation(rsvp.id).await.unwrap();
         assert_eq!(get_rsvp_info.status, rsvp.status);
     }
 
@@ -279,7 +269,7 @@ mod tests {
         );
         // create the reservation
         let rsvp = order_manage.create_order(rsvp).await.unwrap();
-        let get_rsvp_info = order_manage.get_reservation(rsvp.id.clone()).await.unwrap();
+        let get_rsvp_info = order_manage.get_reservation(rsvp.id).await.unwrap();
         assert_eq!(get_rsvp_info, rsvp);
     }
 
