@@ -12,7 +12,7 @@ async fn main() -> Result<()> {
     let addr = format!("{}:{}", config.server.host, config.server.port).parse()?;
     println!("ReservationServer listening on: {}", addr);
 
-    let svc = RsvpService::from_config(config).await?;
+    let svc = RsvpService::from_config(&config).await?;
     let svc = ReservationServiceServer::new(svc);
 
     Server::builder().add_service(svc).serve(addr).await?;
