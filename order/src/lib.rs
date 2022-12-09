@@ -29,7 +29,7 @@ pub trait Order {
     async fn query_reservations(
         &self,
         query: abi::ReservationQuery,
-    ) -> Result<mpsc::Receiver<abi::Reservation>, Error>;
+    ) -> mpsc::Receiver<Result<abi::Reservation, abi::Error>>;
 
     /// query reservations by order by id
     async fn filter_reservations(

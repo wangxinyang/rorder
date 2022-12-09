@@ -1,4 +1,10 @@
+use futures::Stream;
 use order::{Order, OrderManager};
+use std::{
+    pin::Pin,
+    task::{Context, Poll},
+};
+use tokio::sync::mpsc;
 use tonic::{async_trait, Request, Response, Status};
 
 use abi::{
@@ -7,7 +13,7 @@ use abi::{
     GetRequest, GetResponse, ListenRequest, QueryRequest, UpdateRequest, UpdateResponse,
 };
 
-use crate::ReservationResponseStream;
+use crate::{ReservationResponseStream, TonicReceiverStream};
 
 pub struct RsvpService {
     manager: OrderManager,
@@ -90,9 +96,18 @@ impl ReservationService for RsvpService {
     /// get reservations by resource id, user id, start time, end time, and status
     async fn query(
         &self,
-        _request: Request<QueryRequest>,
+        request: Request<QueryRequest>,
     ) -> Result<Response<Self::queryStream>, Status> {
-        todo!()
+        let request = request.into_inner();
+        if request.query.is_none() {
+            return Err(Status::invalid_argument("query is required"));
+        }
+        let rx = self
+            .manager
+            .query_reservations(request.query.unwrap())
+            .await;
+        let stream = TonicReceiverStream::new(rx);
+        Ok(Response::new(Box::pin(stream) as Self::queryStream))
     }
 
     /// filter reservations, order by reservation id
@@ -121,6 +136,25 @@ impl ReservationService for RsvpService {
         _request: Request<ListenRequest>,
     ) -> Result<Response<Self::listenStream>, Status> {
         todo!()
+    }
+}
+
+impl<T> TonicReceiverStream<T> {
+    pub fn new(inner: mpsc::Receiver<Result<T, abi::Error>>) -> Self {
+        Self { inner }
+    }
+}
+
+impl<T> Stream for TonicReceiverStream<T> {
+    type Item = Result<T, Status>;
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        match self.inner.poll_recv(cx) {
+            Poll::Ready(Some(Ok(item))) => Poll::Ready(Some(Ok(item))),
+            Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(e.into()))),
+            Poll::Ready(None) => Poll::Ready(None),
+            Poll::Pending => Poll::Pending,
+        }
     }
 }
 

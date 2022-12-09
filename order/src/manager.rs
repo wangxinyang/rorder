@@ -11,7 +11,7 @@ use sqlx::{
     Either, PgPool, Row,
 };
 use tokio::sync::mpsc;
-use tracing::info;
+use tracing::{info, warn};
 
 impl OrderManager {
     pub fn new(conn: PgPool) -> Self {
@@ -114,7 +114,7 @@ impl Order for OrderManager {
     async fn query_reservations(
         &self,
         query: ReservationQuery,
-    ) -> Result<mpsc::Receiver<abi::Reservation>, Error> {
+    ) -> mpsc::Receiver<Result<abi::Reservation, abi::Error>> {
         let user_id = string_to_option(&query.user_id);
         let resource_id = string_to_option(&query.resource_id);
         let range = query.timespan();
@@ -136,14 +136,20 @@ impl Order for OrderManager {
             .bind(query.page_size)
             .fetch_many(&conn);
 
-            while let Some(Ok(ret)) = rsvps.next().await {
+            while let Some(ret) = rsvps.next().await {
                 match ret {
-                    Either::Left(result) => {
+                    Ok(Either::Left(result)) => {
                         info!("query result: {:?}", result)
                     }
-                    Either::Right(rsvp) => {
-                        if tx.send(rsvp).await.is_err() {
+                    Ok(Either::Right(rsvp)) => {
+                        if tx.send(Ok(rsvp)).await.is_err() {
                             // rx is dropped, so client disconnected
+                            break;
+                        }
+                    }
+                    Err(e) => {
+                        warn!("query error: {:?}", e);
+                        if tx.send(Err(e.into())).await.is_err() {
                             break;
                         }
                     }
@@ -151,7 +157,7 @@ impl Order for OrderManager {
             }
         });
 
-        Ok(rx)
+        rx
     }
 
     async fn filter_reservations(
@@ -369,8 +375,8 @@ mod tests {
             .build()
             .unwrap();
         // query the reservation
-        let mut rx = manager.query_reservations(query).await.unwrap();
-        assert_eq!(rsvp, rx.recv().await.unwrap());
+        let mut rx = manager.query_reservations(query).await;
+        assert_eq!(Ok(rsvp.clone()), rx.recv().await.unwrap());
         assert_eq!(None, rx.recv().await);
 
         // if window is not blank
@@ -382,7 +388,7 @@ mod tests {
             .build()
             .unwrap();
         // query the reservation
-        let mut rx = manager.query_reservations(query).await.unwrap();
+        let mut rx = manager.query_reservations(query).await;
         assert_eq!(None, rx.recv().await);
 
         // if status is not in correct
@@ -394,13 +400,13 @@ mod tests {
             .build()
             .unwrap();
         // query the reservation
-        let mut rx = manager.query_reservations(query.clone()).await.unwrap();
+        let mut rx = manager.query_reservations(query.clone()).await;
         assert_eq!(None, rx.recv().await);
 
         // if change the status to confirmed, query should get result
         let rsvp = manager.change_status(rsvp.id).await.unwrap();
-        let mut rx = manager.query_reservations(query.clone()).await.unwrap();
-        assert_eq!(rsvp, rx.recv().await.unwrap());
+        let mut rx = manager.query_reservations(query.clone()).await;
+        assert_eq!(Some(Ok(rsvp)), rx.recv().await);
         assert_eq!(None, rx.recv().await);
     }
 
