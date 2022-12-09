@@ -79,8 +79,8 @@ mod tests {
                 db: DbConfig {
                     host: "localhost".to_string(),
                     port: 5432,
-                    user: "tosei".to_string(),
-                    password: "tosei".to_string(),
+                    user: "postgres".to_string(),
+                    password: "postgres".to_string(),
                     dbname: "rorder".to_string(),
                     max_connections: 5,
                 },

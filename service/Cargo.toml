@@ -12,7 +12,7 @@ futures = { version = "0.3.25", default-features = false }
 order = { version = "0.1.0", path = "../order" }
 tokio = { version = "1.23.0", features = ["full"] }
 tonic = { version = "0.8.3", features = ["gzip", "tokio-rustls"] }
+sqlx_mock = "0.1.1"
 
 [dev-dependencies]
 sqlx = { version = "0.6.2", features = ["runtime-tokio-rustls", "postgres"] }
-lazy_static = "1.4.0"

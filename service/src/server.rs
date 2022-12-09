@@ -96,99 +96,15 @@ impl ReservationService for RsvpService {
 
 #[cfg(test)]
 mod tests {
-    use std::{ops::Deref, thread};
 
+    use crate::test_util::TestConfig;
     use abi::Reservation;
-    use lazy_static::lazy_static;
-    use sqlx::{types::Uuid, Connection, Executor, PgConnection};
-    use tokio::runtime::Runtime;
 
     use super::*;
 
-    lazy_static! {
-        static ref RUNTIME: Runtime = Runtime::new().unwrap();
-    }
-
-    struct TestConfig {
-        config: Config,
-    }
-
-    impl TestConfig {
-        fn new() -> Self {
-            let mut config = Config::from_file("./fixtures/config.yml").unwrap();
-            // create a random db name
-            let database_name = format!("test_{}", Uuid::new_v4());
-            config.db.dbname = database_name.clone();
-            let server_url = config.db.server_url();
-            let url = config.db.url();
-
-            thread::spawn(move || {
-                // create database
-                // server_url is not append a database name
-                RUNTIME.block_on(async move {
-                    let mut conn = PgConnection::connect(&server_url).await.unwrap();
-                    conn.execute(format!(r#"CREATE Database "{}""#, database_name).as_str())
-                        .await
-                        .unwrap();
-                    let mut conn = PgConnection::connect(&url).await.unwrap();
-                    // migrate database
-                    sqlx::migrate!("../migrations")
-                        .run(&mut conn)
-                        .await
-                        .unwrap();
-                });
-            })
-            .join()
-            .expect("Thread panicked");
-
-            Self { config }
-        }
-    }
-
-    impl Drop for TestConfig {
-        fn drop(&mut self) {
-            // server_url is not append a database name
-            let url = self.config.db.server_url();
-            let database_name = self.config.db.dbname.clone();
-            println!("url is: {}", url);
-            println!("database_name is: {}", database_name);
-            thread::spawn(move || {
-                // drop database
-                RUNTIME.block_on(async move {
-                    let mut conn = PgConnection::connect(&url).await.unwrap();
-                    // terminate all connections
-                    sqlx::query(&format!(
-                        r#"SELECT pg_terminate_backend(pid) FROM pg_stat_activity
-                     WHERE pid <> pg_backend_pid() AND datname = '{}'"#,
-                        database_name
-                    ))
-                    .execute(&mut conn)
-                    .await
-                    .expect("Terminate all other connections");
-
-                    // drop database
-                    conn.execute(format!(r#"DROP Database "{}""#, database_name).as_str())
-                        .await
-                        .expect("Deleting the database");
-                });
-            })
-            .join()
-            .expect("Thread panicked");
-        }
-    }
-
-    impl Deref for TestConfig {
-        type Target = Config;
-
-        fn deref(&self) -> &Self::Target {
-            &self.config
-        }
-    }
-
     #[tokio::test]
     async fn rpc_create_reservation_should_be_work() {
-        let config = TestConfig::new();
-        // let config = Config::from_file("../service/fixtures/config.yml").unwrap();
+        let config = TestConfig::default();
         let service = RsvpService::from_config(&config).await.unwrap();
         let reservation = Reservation::new_pending(
             "tosei",
