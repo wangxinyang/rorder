@@ -9,7 +9,10 @@ edition = "2021"
 abi = { version = "0.1.0", path = "../abi" }
 async-trait = "0.1.58"
 chrono = "0.4.22"
+futures = { version = "0.3.25", default-features = false }
 sqlx = { version = "0.6.2", features = ["chrono", "uuid", "postgres", "runtime-tokio-rustls"] }
+tokio = { version = "1.21.2", features = ["sync"] }
+tracing = "0.1.37"
 
 [dev-dependencies]
 prost-types = "0.11.2"

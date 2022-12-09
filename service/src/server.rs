@@ -41,30 +41,49 @@ impl ReservationService for RsvpService {
     /// confirm a valid perid resource, if reservation is not pending, do nothing
     async fn confirm(
         &self,
-        _request: Request<ConfirmRequest>,
+        request: Request<ConfirmRequest>,
     ) -> Result<Response<ConfirmResponse>, Status> {
-        todo!()
+        let request = request.into_inner();
+        if request.id == 0 {
+            return Err(Status::invalid_argument("reservation_id is required"));
+        }
+        let rsvp = self.manager.change_status(request.id).await?;
+        Ok(Response::new(ConfirmResponse {
+            reservation: Some(rsvp),
+        }))
     }
 
     /// update a reservation
     async fn update(
         &self,
-        _request: Request<UpdateRequest>,
+        request: Request<UpdateRequest>,
     ) -> Result<Response<UpdateResponse>, Status> {
-        todo!()
+        let request = request.into_inner();
+        let rsvp = self.manager.update_note(request.id, request.note).await?;
+        Ok(Response::new(UpdateResponse {
+            reservation: Some(rsvp),
+        }))
     }
 
     /// cancel a reservation
     async fn cancel(
         &self,
-        _request: Request<CancelRequest>,
+        request: Request<CancelRequest>,
     ) -> Result<Response<CancelResponse>, Status> {
-        todo!()
+        let request = request.into_inner();
+        let rsvp = self.manager.cancel_reservation(request.id).await?;
+        Ok(Response::new(CancelResponse {
+            reservation: Some(rsvp),
+        }))
     }
 
     /// get reservation by reservation id
-    async fn get(&self, _request: Request<GetRequest>) -> Result<Response<GetResponse>, Status> {
-        todo!()
+    async fn get(&self, request: Request<GetRequest>) -> Result<Response<GetResponse>, Status> {
+        let request = request.into_inner();
+        let rsvp = self.manager.get_reservation(request.id).await?;
+        Ok(Response::new(GetResponse {
+            reservation: Some(rsvp),
+        }))
     }
 
     type queryStream = ReservationResponseStream;
@@ -79,9 +98,20 @@ impl ReservationService for RsvpService {
     /// filter reservations, order by reservation id
     async fn filter(
         &self,
-        _request: Request<FilterRequest>,
+        request: Request<FilterRequest>,
     ) -> Result<Response<FilterResponse>, Status> {
-        todo!()
+        let request = request.into_inner();
+        if request.filter.is_none() {
+            return Err(Status::invalid_argument("filter is required"));
+        }
+        let (filter_page, reservations) = self
+            .manager
+            .filter_reservations(request.filter.unwrap())
+            .await?;
+        Ok(Response::new(FilterResponse {
+            pager: Some(filter_page),
+            reservations,
+        }))
     }
 
     type listenStream = ReservationResponseStream;
