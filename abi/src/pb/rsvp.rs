@@ -1,4 +1,5 @@
 /// reservation
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Reservation {
     #[prost(int64, tag = "1")]
@@ -17,30 +18,35 @@ pub struct Reservation {
     pub note: ::prost::alloc::string::String,
 }
 /// add reservation request
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct AddRequest {
     #[prost(message, optional, tag = "1")]
     pub reservation: ::core::option::Option<Reservation>,
 }
 /// add reservation response
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct AddResponse {
     #[prost(message, optional, tag = "1")]
     pub reservation: ::core::option::Option<Reservation>,
 }
 /// confirm reservation request
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ConfirmRequest {
     #[prost(int64, tag = "1")]
     pub id: i64,
 }
 /// confirm reservation response
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ConfirmResponse {
     #[prost(message, optional, tag = "1")]
     pub reservation: ::core::option::Option<Reservation>,
 }
 /// update reservation request
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct UpdateRequest {
     #[prost(int64, tag = "1")]
@@ -49,37 +55,44 @@ pub struct UpdateRequest {
     pub note: ::prost::alloc::string::String,
 }
 /// update reservation response
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct UpdateResponse {
     #[prost(message, optional, tag = "1")]
     pub reservation: ::core::option::Option<Reservation>,
 }
 /// cancel reservation request
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CancelRequest {
     #[prost(int64, tag = "1")]
     pub id: i64,
 }
 /// cancel reservation response
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CancelResponse {
     #[prost(message, optional, tag = "1")]
     pub reservation: ::core::option::Option<Reservation>,
 }
 /// get reservation request
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetRequest {
     #[prost(int64, tag = "1")]
     pub id: i64,
 }
 /// get reservation response
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetResponse {
     #[prost(message, optional, tag = "1")]
     pub reservation: ::core::option::Option<Reservation>,
 }
 /// query reservations with user id, resource id, start time, end time, and status
-#[derive(derive_builder::Builder, Clone, PartialEq, ::prost::Message)]
+#[derive(derive_builder::Builder)]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ReservationQuery {
     /// resource id for the reservation query. If empty, query all resources
     #[prost(string, tag = "1")]
@@ -114,14 +127,17 @@ pub struct ReservationQuery {
     #[builder(setter(into), default)]
     pub page_size: i32,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct QueryRequest {
     #[prost(message, optional, tag = "1")]
     pub query: ::core::option::Option<ReservationQuery>,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ListenRequest {}
 /// Server will send ListenResponse to client in streaming response
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ListenResponse {
     /// update type
@@ -132,7 +148,9 @@ pub struct ListenResponse {
     pub reservation: ::core::option::Option<Reservation>,
 }
 /// query reservations, order by reservation id
-#[derive(derive_builder::Builder, Clone, PartialEq, ::prost::Message)]
+#[derive(derive_builder::Builder)]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ReservationFilter {
     /// resource id for the reservation query. If empty, query all resources
     #[prost(string, tag = "1")]
@@ -159,12 +177,14 @@ pub struct ReservationFilter {
     pub desc: bool,
 }
 /// To query reservations, send a QueryRequest
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct FilterRequest {
     #[prost(message, optional, tag = "1")]
     pub filter: ::core::option::Option<ReservationFilter>,
 }
 /// filter pager info
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct FilterPager {
     #[prost(int64, optional, tag = "1")]
@@ -174,6 +194,7 @@ pub struct FilterPager {
     #[prost(int64, optional, tag = "3")]
     pub total: ::core::option::Option<i64>,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct FilterResponse {
     #[prost(message, repeated, tag = "1")]
@@ -205,6 +226,16 @@ impl ReservationStatus {
             ReservationStatus::Cancelled => "RESERVATION_STATUS_CANCELLED",
         }
     }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "RESERVATION_STATUS_UNKNOWN" => Some(Self::Unknown),
+            "RESERVATION_STATUS_PENDING" => Some(Self::Pending),
+            "RESERVATION_STATUS_CONFIRMED" => Some(Self::Confirmed),
+            "RESERVATION_STATUS_CANCELLED" => Some(Self::Cancelled),
+            _ => None,
+        }
+    }
 }
 /// when reservation is updated, record the update type
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
@@ -226,6 +257,16 @@ impl ReservationUpdateType {
             ReservationUpdateType::Create => "RESERVATION_UPDATE_TYPE_CREATE",
             ReservationUpdateType::Update => "RESERVATION_UPDATE_TYPE_UPDATE",
             ReservationUpdateType::Delete => "RESERVATION_UPDATE_TYPE_DELETE",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "RESERVATION_UPDATE_TYPE_UNKNOWN" => Some(Self::Unknown),
+            "RESERVATION_UPDATE_TYPE_CREATE" => Some(Self::Create),
+            "RESERVATION_UPDATE_TYPE_UPDATE" => Some(Self::Update),
+            "RESERVATION_UPDATE_TYPE_DELETE" => Some(Self::Delete),
+            _ => None,
         }
     }
 }
@@ -430,7 +471,7 @@ pub mod reservation_service_client {
 pub mod reservation_service_server {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
-    ///Generated trait containing gRPC methods that should be implemented for use with ReservationServiceServer.
+    /// Generated trait containing gRPC methods that should be implemented for use with ReservationServiceServer.
     #[async_trait]
     pub trait ReservationService: Send + Sync + 'static {
         /// make a reservation
@@ -458,7 +499,7 @@ pub mod reservation_service_server {
             &self,
             request: tonic::Request<super::GetRequest>,
         ) -> Result<tonic::Response<super::GetResponse>, tonic::Status>;
-        ///Server streaming response type for the query method.
+        /// Server streaming response type for the query method.
         type queryStream: futures_core::Stream<Item = Result<super::Reservation, tonic::Status>>
             + Send
             + 'static;
@@ -472,7 +513,7 @@ pub mod reservation_service_server {
             &self,
             request: tonic::Request<super::FilterRequest>,
         ) -> Result<tonic::Response<super::FilterResponse>, tonic::Status>;
-        ///Server streaming response type for the listen method.
+        /// Server streaming response type for the listen method.
         type listenStream: futures_core::Stream<Item = Result<super::Reservation, tonic::Status>>
             + Send
             + 'static;

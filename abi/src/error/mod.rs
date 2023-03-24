@@ -97,7 +97,7 @@ impl From<Error> for tonic::Status {
             | Error::InvalidCursor(_)
             | Error::InvalidStatus(_) => tonic::Status::invalid_argument(e.to_string()),
             Error::ConfilictReservation(info) => {
-                tonic::Status::failed_precondition(format!("Conflict reservation: {:?}", info))
+                tonic::Status::failed_precondition(format!("Conflict reservation: {info:?}"))
             }
             Error::NotFound => {
                 tonic::Status::not_found("No reservation found by the given condition")

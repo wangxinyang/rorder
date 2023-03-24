@@ -80,7 +80,7 @@ impl TryFrom<HashMap<String, String>> for ReservationWindow {
 
 fn parse_datetime(s: &str) -> Result<DateTime<Utc>, ()> {
     Ok(DateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S%#z")
-        .map_err(|e| println!("err is: {}", e))?
+        .map_err(|e| println!("err is: {e}"))?
         .into())
 }
 
@@ -151,7 +151,7 @@ mod tests {
     #[test]
     fn conflict_error_message_should_parse() {
         let result: ParsedInfo = ERR_MSG.parse().unwrap();
-        println!("result is : {:?}", result);
+        println!("result is : {result:?}");
         let reservation_conflict: ReservationConflict = result.try_into().unwrap();
         assert_eq!("ocean roon-745", reservation_conflict.new.rid);
         assert_eq!(

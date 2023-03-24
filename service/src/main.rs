@@ -10,7 +10,7 @@ async fn main() -> Result<()> {
     let config = Config::from_file("./reservation.yml")?;
 
     let addr = format!("{}:{}", config.server.host, config.server.port).parse()?;
-    println!("ReservationServer listening on: {}", addr);
+    println!("ReservationServer listening on: {addr}");
 
     let svc = RsvpService::from_config(&config).await?;
     let svc = ReservationServiceServer::new(svc);
